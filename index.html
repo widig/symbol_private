@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<script>
+	// proof of concept, this avoids, reading machine reading code automatically.
+	var attributes = Symbol.for("<tag>attributes</tag>");
+	var _public = Symbol.for("<attributes>public</attributes>");
+	var _private = Symbol.for("<attributes>private</attributes>");
+	var Key = Symbol();
+	var [obj,keyA] = (function() {
+		var obj = {};
+		var _key = obj[Key] = Symbol.for("class registered with id: 123123123");
+		obj[_public] = {
+			value1 : 10,
+			method1 : function() {
+				console.log("call of public method1");
+				this[_private](_key).method1.apply(this);
+			},
+			method2 : function() {
+				console.log("call of public method2");
+				this[_private](_key).method2.apply(this);
+			}
+		};
+		// private data goes here.
+		var private_data = 30;
+		obj[_private] = {
+			method1 : function() {
+				console.log("call of private method1");
+				console.log( "OUT:", this.value1 );
+				this.value1 += 10;
+			},
+			method2 : function() {
+				console.log("OUT:",this.value1);
+				console.log("call of private method2");
+			}
+		};
+		return [obj,_key];
+	})();
+	function compile(obj) {
+		var ret = {};
+		var _key = obj[Key];
+		obj[Key] = 0;
+		if(_public in obj) {
+			for(var x in obj[_public]) {
+				ret[x] = obj[_public][x];
+			}
+		}
+		var __private = Symbol();
+		if(_private in obj) {
+			ret[_private] = function(key) {
+				if( _key == key ) {
+					return obj[_private];
+				}
+				return null;
+			}
+		}
+		return ret;
+	}
+	obj = compile(obj);
+	obj.method1();
+	obj.method2();
+	for(var x in obj) {
+		console.log(x);
+	}
+	// trying to access private methods of object without key
+	var symbs = Object.getOwnPropertySymbols(obj);
+	if( symbs[0].toString() == "Symbol(<attributes>private</attributes>)" ) {
+		console.log("ACCESS DENIED:",obj[ symbs[0] ]() );
+	}
+	
+	// trying to access private methods of object with key
+	// do "best friend" adjustments
+	if( symbs[0].toString() == "Symbol(<attributes>private</attributes>)" ) {
+		console.log("ACCESS GRANTED:",obj[ symbs[0] ](keyA) );
+		obj[ symbs[0] ](keyA).method1.apply(obj);
+		obj[ symbs[0] ](keyA).method2.apply(obj);
+	}
+	console.log(keyA);
+	keyA = null;
+	// kill the key out of memory
+	if( symbs[0].toString() == "Symbol(<attributes>private</attributes>)" ) {
+		console.log("ACCESS DENIED:",obj[ symbs[0] ]() );
+	}
+	
+</script>
+<head>
+<body>
+
+</body>
+</html>
